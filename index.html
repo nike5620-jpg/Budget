@@ -1,0 +1,698 @@
+<title>Nick's Budget</title>
+<style>
+  /* Layout: bottom-nav tabs, scrollable card sections per tab */
+  :root {
+    --bg: #F7F8FA;
+    --surface: #FFFFFF;
+    --border: #E4E6EB;
+    --fg: #1A1D23;
+    --fg2: #6B7280;
+    --accent: #0F7A5A;
+    --accent-bg: #E6F5F0;
+    --danger: #C0392B;
+    --danger-bg: #FDECEA;
+    --warn: #B45309;
+    --warn-bg: #FEF3C7;
+    --affirm: #7A2F00;
+    --affirm-bg: #FFF0E6;
+    --klarna: #7A003C;
+    --klarna-bg: #FFE8F3;
+    --paypal: #003A7A;
+    --paypal-bg: #E6EEFF;
+    --nav-h: 60px;
+    --top-h: 56px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111318;
+      --surface: #1C2028;
+      --border: #2C3040;
+      --fg: #E8EAF0;
+      --fg2: #8A929E;
+      --accent: #1DB87E;
+      --accent-bg: #0D2E22;
+      --danger: #E05252;
+      --danger-bg: #2C1414;
+      --warn: #D97706;
+      --warn-bg: #2A1E08;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111318; --surface: #1C2028; --border: #2C3040;
+    --fg: #E8EAF0; --fg2: #8A929E;
+    --accent: #1DB87E; --accent-bg: #0D2E22;
+    --danger: #E05252; --danger-bg: #2C1414;
+    --warn: #D97706; --warn-bg: #2A1E08;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+    display: flex; flex-direction: column;
+  }
+
+  /* Top bar */
+  .topbar {
+    position: sticky; top: env(safe-area-inset-top, 0px);
+    height: var(--top-h); background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 16px;
+    gap: 10px; z-index: 10;
+  }
+  .topbar h1 { font-size: 17px; font-weight: 700; flex: 1; }
+  .topbar .week-badge {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-bg); padding: 4px 10px; border-radius: 20px;
+  }
+
+  /* Scroll area */
+  .tab-content { flex: 1; overflow-y: auto; padding: 12px 16px 80px; }
+  .tab-panel { display: none; flex-direction: column; gap: 12px; }
+  .tab-panel.active { display: flex; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+    z-index: 10;
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; background: none; border: none;
+    color: var(--fg2); font-size: 10px; font-weight: 600;
+    letter-spacing: .04em; cursor: pointer; padding-top: 8px;
+    text-transform: uppercase; transition: color .15s;
+  }
+  .nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-btn.active { color: var(--accent); }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border-radius: 14px;
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-header h2 { font-size: 14px; font-weight: 700; flex: 1; }
+  .card-header .badge {
+    font-size: 11px; font-weight: 700; padding: 3px 9px;
+    border-radius: 20px; font-variant-numeric: tabular-nums;
+  }
+  .badge-green { background: var(--accent-bg); color: var(--accent); }
+  .badge-red { background: var(--danger-bg); color: var(--danger); }
+  .badge-warn { background: var(--warn-bg); color: var(--warn); }
+
+  /* Row list */
+  .row-list { display: flex; flex-direction: column; }
+  .row-item {
+    display: flex; align-items: center; padding: 11px 16px;
+    border-bottom: 1px solid var(--border); gap: 10px;
+  }
+  .row-item:last-child { border-bottom: none; }
+  .row-label { flex: 1; font-size: 14px; color: var(--fg); }
+  .row-label small { display: block; font-size: 11px; color: var(--fg2); margin-top: 1px; }
+  .row-val { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .val-green { color: var(--accent); }
+  .val-red { color: var(--danger); }
+  .val-warn { color: var(--warn); }
+  .val-muted { color: var(--fg2); }
+
+  /* Section label */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--fg2);
+    padding: 4px 0 2px;
+  }
+
+  /* Debt tracker editable */
+  .debt-input {
+    width: 90px; text-align: right; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 8px; background: var(--bg);
+    color: var(--fg); font-size: 14px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .debt-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .remaining-val { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  /* Progress bar */
+  .progress-wrap { padding: 0 16px 14px; }
+  .progress-track {
+    height: 8px; background: var(--border); border-radius: 99px; overflow: hidden;
+  }
+  .progress-fill { height: 100%; border-radius: 99px; transition: width .4s; }
+
+  /* BNPL platform chip */
+  .chip {
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 99px; letter-spacing: .03em;
+    white-space: nowrap;
+  }
+  .chip-affirm { background: var(--affirm-bg); color: var(--affirm); }
+  .chip-klarna { background: var(--klarna-bg); color: var(--klarna); }
+  .chip-paypal { background: var(--paypal-bg); color: var(--paypal); }
+
+  /* Tight week alert */
+  .alert-row { background: var(--danger-bg); }
+  .alert-row .row-label, .alert-row .row-val { color: var(--danger); }
+
+  /* Summary tiles */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile {
+    background: var(--surface); border-radius: 14px;
+    border: 1px solid var(--border); padding: 14px 14px 12px;
+  }
+  .tile-label { font-size: 11px; font-weight: 600; color: var(--fg2); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .tile-val { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tile-sub { font-size: 11px; color: var(--fg2); margin-top: 3px; }
+  .tile-green .tile-val { color: var(--accent); }
+  .tile-red .tile-val { color: var(--danger); }
+  .tile-warn .tile-val { color: var(--warn); }
+
+  /* Month section header */
+  .month-header {
+    font-size: 12px; font-weight: 800; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--fg2);
+    padding: 6px 0 2px;
+  }
+</style>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <h1>Nick's Budget</h1>
+  <span class="week-badge">$900/wk</span>
+</div>
+
+<!-- SCROLL AREA -->
+<div class="tab-content">
+
+  <!-- TAB: SCHEDULE -->
+  <div class="tab-panel active" id="panel-schedule">
+
+    <div class="tiles">
+      <div class="tile tile-green">
+        <div class="tile-label">This Paycheck</div>
+        <div class="tile-val">Oct 9</div>
+        <div class="tile-sub">Thu · Week 1</div>
+      </div>
+      <div class="tile tile-red">
+        <div class="tile-label">Real Spending</div>
+        <div class="tile-val" id="wk1-real">$111</div>
+        <div class="tile-sub">After BNPL out</div>
+      </div>
+    </div>
+
+    <p class="section-label">October 2026 — Ramp Period</p>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Thu Oct 9 · Week 1</h2>
+        <span class="badge badge-red">Tight</span>
+      </div>
+      <div class="row-list">
+        <div class="row-item alert-row">
+          <span class="row-label">Into Pods</span>
+          <span class="row-val val-red">$674</span>
+        </div>
+        <div class="row-item alert-row">
+          <span class="row-label">Spending Kept</span>
+          <span class="row-val val-red">$226</span>
+        </div>
+        <div class="row-item alert-row">
+          <span class="row-label">BNPL This Week<small>StubHub · Agnellos · Home Depot</small></span>
+          <span class="row-val val-red">$114.82</span>
+        </div>
+        <div class="row-item alert-row">
+          <span class="row-label">Real Spending Left</span>
+          <span class="row-val val-red">$111.18</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Thu Oct 16 · Week 2</h2>
+        <span class="badge badge-red">Tight</span>
+      </div>
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Into Pods</span><span class="row-val">$674</span></div>
+        <div class="row-item"><span class="row-label">Spending Kept</span><span class="row-val">$226</span></div>
+        <div class="row-item">
+          <span class="row-label">BNPL This Week<small>Hotels · Klarna Amazon · Affirm Amazon</small></span>
+          <span class="row-val val-warn">$91.18</span>
+        </div>
+        <div class="row-item"><span class="row-label">Real Spending Left</span><span class="row-val val-warn">$134.82</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Thu Oct 23 · Week 3</h2>
+        <span class="badge badge-red">Tight</span>
+      </div>
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Into Pods</span><span class="row-val">$647</span></div>
+        <div class="row-item"><span class="row-label">Spending Kept</span><span class="row-val">$253</span></div>
+        <div class="row-item">
+          <span class="row-label">BNPL This Week<small>Butcher Box · Home Depot #2 · Stitch Fix</small></span>
+          <span class="row-val val-warn">$110.40</span>
+        </div>
+        <div class="row-item"><span class="row-label">Real Spending Left</span><span class="row-val val-warn">$142.60</span></div>
+      </div>
+      <div class="progress-wrap" style="padding-top:10px;">
+        <div style="font-size:11px;color:var(--fg2);margin-bottom:5px;">Car $430 due · Insurance $151 due</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Thu Oct 30 · Week 4</h2>
+        <span class="badge badge-green">Breathing Room</span>
+      </div>
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Into Pods</span><span class="row-val">$603</span></div>
+        <div class="row-item"><span class="row-label">Spending Kept</span><span class="row-val">$297</span></div>
+        <div class="row-item">
+          <span class="row-label">BNPL This Week<small>Target $22.61</small></span>
+          <span class="row-val val-muted">$22.61</span>
+        </div>
+        <div class="row-item"><span class="row-label">Real Spending Left</span><span class="row-val val-green">$274.39</span></div>
+      </div>
+    </div>
+
+    <p class="section-label">November 2026 — Steady State</p>
+
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item">
+          <span class="row-label">Nov 6 · Wk 5<small>StubHub · Agnellos BNPL: $61.51</small></span>
+          <span class="row-val val-green">$256</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Nov 13 · Wk 6<small>Hotels LAST ✓ · BNPL: $30.27</small></span>
+          <span class="row-val val-green">$288</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Nov 20 · Wk 7<small>Amazon · Butcher Box · BNPL: $34.46</small></span>
+          <span class="row-val val-green">$284</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Nov 27 · Wk 8<small>Stitch Fix · BNPL: $40.48</small></span>
+          <span class="row-val val-green">$278</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-label">December 2026</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item">
+          <span class="row-label">Dec 4 · Wk 9<small>Target LAST ✓ · PayPal done ✓</small></span>
+          <span class="row-val val-green">$295</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Dec 11 · Wk 10<small>Agnellos · BNPL: $27.12</small></span>
+          <span class="row-val val-green">$291</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Dec 18 · Wk 11<small>Amazon Affirm LAST ✓</small></span>
+          <span class="row-val val-green">$300</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Dec 25 · Wk 12<small>Butcher Box · Stitch Fix LAST ✓</small></span>
+          <span class="row-val val-green">$261</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-label">January 2027+ — Savings Restarts</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item">
+          <span class="row-label">Every Thu Jan+<small>$35/wk savings restarts · $617 to pods</small></span>
+          <span class="row-val val-green">$283</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">After Mar 25<small>🎉 All BNPL cleared forever</small></span>
+          <span class="row-val val-green">$283</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-schedule -->
+
+  <!-- TAB: PODS -->
+  <div class="tab-panel" id="panel-pods">
+
+    <div class="tiles">
+      <div class="tile tile-warn">
+        <div class="tile-label">Oct Wks 1–3</div>
+        <div class="tile-val">$674</div>
+        <div class="tile-sub">To pods · ramp</div>
+      </div>
+      <div class="tile tile-green">
+        <div class="tile-label">Steady State</div>
+        <div class="tile-val">$582</div>
+        <div class="tile-sub">To pods · Nov–Dec</div>
+      </div>
+    </div>
+
+    <p class="section-label">Weekly Pod Amounts</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item">
+          <span class="row-label">Rent Vault<small>$1,050/mo · due before 5th</small></span>
+          <span class="row-val">$263</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Car Payment Vault<small>$430/mo · due 15th</small></span>
+          <span class="row-val">$100</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Car Insurance Vault<small>$151.23/mo · due 2nd</small></span>
+          <span class="row-val">$35</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Utilities Vault<small>$300/mo</small></span>
+          <span class="row-val">$70</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Yoga Vault<small>$100/mo · due 22nd</small></span>
+          <span class="row-val">$23</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Ghost Vault<small>$30 wet food + $9 supplies/wk</small></span>
+          <span class="row-val">$39</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">CC Vault<small>→ Capital One payoff</small></span>
+          <span class="row-val">$70</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Xbox<small>$10/mo · hold in checking</small></span>
+          <span class="row-val">$2</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Savings — HYSA<small>Paused Oct–Dec · $35 restarts Jan</small></span>
+          <span class="row-val val-muted">$0</span>
+        </div>
+        <div class="row-item">
+          <span class="row-label">Investing<small>Paused until high-interest debt cleared</small></span>
+          <span class="row-val val-muted">$0</span>
+        </div>
+        <div class="row-item" style="background:var(--accent-bg)">
+          <span class="row-label" style="font-weight:700;">Total to Pods (Nov–Dec)</span>
+          <span class="row-val val-green">$582</span>
+        </div>
+        <div class="row-item" style="background:var(--accent-bg)">
+          <span class="row-label" style="font-weight:700;">Spending Kept</span>
+          <span class="row-val val-green">$318</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-label">Ramp Period — Oct Wks 1–3</p>
+    <div class="card">
+      <div class="card-header"><h2>Boosted to build from $0</h2></div>
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Car Payment Vault</span><span class="row-val val-warn">$144</span></div>
+        <div class="row-item"><span class="row-label">Yoga Vault</span><span class="row-val val-warn">$50</span></div>
+        <div class="row-item"><span class="row-label">Total to Pods</span><span class="row-val val-warn">$674</span></div>
+        <div class="row-item"><span class="row-label">Spending Kept</span><span class="row-val val-red">$226</span></div>
+      </div>
+    </div>
+
+  </div><!-- /panel-pods -->
+
+  <!-- TAB: BNPL -->
+  <div class="tab-panel" id="panel-bnpl">
+
+    <div class="tiles">
+      <div class="tile tile-red">
+        <div class="tile-label">Oct Total</div>
+        <div class="tile-val">$316</div>
+        <div class="tile-sub">Heaviest month</div>
+      </div>
+      <div class="tile tile-green">
+        <div class="tile-label">Last Payment</div>
+        <div class="tile-val">Mar 25</div>
+        <div class="tile-sub">All 0% interest</div>
+      </div>
+    </div>
+
+    <p class="month-header">October 2026</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Oct 7 — StubHub<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val val-warn">$34.39</span></div>
+        <div class="row-item"><span class="row-label">Oct 12 — Agnellos<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$27.12</span></div>
+        <div class="row-item"><span class="row-label">Oct 13 — Home Depot #1<small><span class="chip chip-paypal">PayPal</span></small></span><span class="row-val">$53.31</span></div>
+        <div class="row-item"><span class="row-label">Oct 17 — Hotels<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$30.27</span></div>
+        <div class="row-item"><span class="row-label">Oct 18 — Amazon<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$43.06</span></div>
+        <div class="row-item"><span class="row-label">Oct 22 — Amazon<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$17.85</span></div>
+        <div class="row-item"><span class="row-label">Oct 25 — Butcher Box<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$16.61</span></div>
+        <div class="row-item"><span class="row-label">Oct 29 — Home Depot #2 ✓<small><span class="chip chip-paypal">PayPal</span></small></span><span class="row-val val-green">$53.31</span></div>
+        <div class="row-item"><span class="row-label">Oct 29 — Stitch Fix<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$40.48</span></div>
+      </div>
+    </div>
+
+    <p class="month-header">November 2026</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Nov 4 — Target<small><span class="chip chip-paypal">PayPal</span></small></span><span class="row-val">$22.61</span></div>
+        <div class="row-item"><span class="row-label">Nov 7 — StubHub<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$34.39</span></div>
+        <div class="row-item"><span class="row-label">Nov 12 — Agnellos<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$27.12</span></div>
+        <div class="row-item"><span class="row-label">Nov 17 — Hotels LAST ✓<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val val-green">$30.27</span></div>
+        <div class="row-item"><span class="row-label">Nov 22 — Amazon<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$17.85</span></div>
+        <div class="row-item"><span class="row-label">Nov 25 — Butcher Box<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$16.61</span></div>
+        <div class="row-item"><span class="row-label">Nov 29 — Stitch Fix<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$40.48</span></div>
+      </div>
+    </div>
+
+    <p class="month-header">December 2026</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Dec 4 — Target LAST ✓<small><span class="chip chip-paypal">PayPal</span> · PayPal fully done ✓</small></span><span class="row-val val-green">$22.61</span></div>
+        <div class="row-item"><span class="row-label">Dec 12 — Agnellos<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val">$27.12</span></div>
+        <div class="row-item"><span class="row-label">Dec 22 — Amazon LAST ✓<small><span class="chip chip-affirm">Affirm</span></small></span><span class="row-val val-green">$17.85</span></div>
+        <div class="row-item"><span class="row-label">Dec 25 — Butcher Box<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$16.61</span></div>
+        <div class="row-item"><span class="row-label">Dec 29 — Stitch Fix LAST ✓<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val val-green">$40.48</span></div>
+      </div>
+    </div>
+
+    <p class="month-header">Jan – Mar 2027</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Jan 12 — Agnellos LAST ✓<small><span class="chip chip-affirm">Affirm</span> · Affirm fully done ✓</small></span><span class="row-val val-green">$27.12</span></div>
+        <div class="row-item"><span class="row-label">Jan 25 — Butcher Box<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$16.61</span></div>
+        <div class="row-item"><span class="row-label">Feb 25 — Butcher Box<small><span class="chip chip-klarna">Klarna</span></small></span><span class="row-val">$16.61</span></div>
+        <div class="row-item" style="background:var(--accent-bg)">
+          <span class="row-label" style="color:var(--accent);font-weight:700;">Mar 25 — Butcher Box FINAL 🎉<small><span class="chip chip-klarna">Klarna</span> · ALL BNPL CLEARED</small></span>
+          <span class="row-val val-green">$16.61</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-bnpl -->
+
+  <!-- TAB: DEBT -->
+  <div class="tab-panel" id="panel-debt">
+
+    <div class="tiles">
+      <div class="tile tile-red">
+        <div class="tile-label">High-Interest</div>
+        <div class="tile-val" id="tile-hi">$4,032</div>
+        <div class="tile-sub">Care Credit + CC + TD</div>
+      </div>
+      <div class="tile">
+        <div class="tile-label">BNPL (0%)</div>
+        <div class="tile-val">$707</div>
+        <div class="tile-sub">Self-clearing by Mar</div>
+      </div>
+    </div>
+
+    <p class="section-label">High-Interest Debt — Update as You Pay</p>
+    <div class="card" id="hi-debt-card">
+      <!-- Care Credit -->
+      <div class="row-item" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="flex:1;font-weight:700;font-size:14px;">Care Credit</span>
+          <span class="badge badge-green">PAY FIRST</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--fg2);flex:1;">Balance: $32.00</span>
+          <span style="font-size:12px;color:var(--fg2);">Paid: $</span>
+          <input class="debt-input" type="number" id="paid-cc" min="0" max="32" step="0.01" value="0" placeholder="0">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--fg2);">Remaining</span>
+          <span class="remaining-val" id="rem-cc" style="color:var(--accent);">$32.00</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="prog-cc" style="background:var(--accent);width:0%"></div></div>
+      </div>
+
+      <div style="height:1px;background:var(--border);"></div>
+
+      <!-- Capital One -->
+      <div class="row-item" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="flex:1;font-weight:700;font-size:14px;">Capital One CC</span>
+          <span class="badge badge-warn">NEXT</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--fg2);flex:1;">Balance: $1,500.00</span>
+          <span style="font-size:12px;color:var(--fg2);">Paid: $</span>
+          <input class="debt-input" type="number" id="paid-cap" min="0" max="1500" step="0.01" value="0" placeholder="0">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--fg2);">Remaining</span>
+          <span class="remaining-val" id="rem-cap" style="color:var(--warn);">$1,500.00</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="prog-cap" style="background:var(--warn);width:0%"></div></div>
+      </div>
+
+      <div style="height:1px;background:var(--border);"></div>
+
+      <!-- TD Bank -->
+      <div class="row-item" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="flex:1;font-weight:700;font-size:14px;">TD Bank</span>
+          <span class="badge badge-red">AFTER CAP ONE</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--fg2);flex:1;">Balance: $2,500.00</span>
+          <span style="font-size:12px;color:var(--fg2);">Paid: $</span>
+          <input class="debt-input" type="number" id="paid-td" min="0" max="2500" step="0.01" value="0" placeholder="0">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--fg2);">Remaining</span>
+          <span class="remaining-val" id="rem-td" style="color:var(--danger);">$2,500.00</span>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="prog-td" style="background:var(--danger);width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:4px;">
+      <div class="row-item" style="background:var(--danger-bg)">
+        <span class="row-label" style="font-weight:700;">Total High-Interest Remaining</span>
+        <span class="row-val val-red" id="total-hi">$4,032.00</span>
+      </div>
+    </div>
+
+    <p class="section-label" style="margin-top:8px;">BNPL — Self-Clearing at 0%</p>
+    <div class="card">
+      <div class="row-list">
+        <div class="row-item"><span class="row-label">Affirm — Agnellos<small>Last: Jan 12, 2027</small></span><span class="row-val val-muted">$108.48</span></div>
+        <div class="row-item"><span class="row-label">Affirm — Hotels<small>Last: Nov 17, 2026</small></span><span class="row-val val-muted">$60.54</span></div>
+        <div class="row-item"><span class="row-label">Affirm — StubHub<small>Last: Nov 7, 2026</small></span><span class="row-val val-muted">$68.78</span></div>
+        <div class="row-item"><span class="row-label">Affirm — Amazon<small>Last: Dec 22, 2026</small></span><span class="row-val val-muted">$53.55</span></div>
+        <div class="row-item"><span class="row-label">Klarna — Amazon<small>Last: Oct 18, 2026</small></span><span class="row-val val-muted">$43.06</span></div>
+        <div class="row-item"><span class="row-label">Klarna — Butcher Box<small>Last: Mar 25, 2027</small></span><span class="row-val val-muted">$99.66</span></div>
+        <div class="row-item"><span class="row-label">Klarna — Stitch Fix<small>Last: Dec 29, 2026</small></span><span class="row-val val-muted">$121.44</span></div>
+        <div class="row-item"><span class="row-label">PayPal — Target<small>Last: Dec 4, 2026</small></span><span class="row-val val-muted">$45.22</span></div>
+        <div class="row-item"><span class="row-label">PayPal — Home Depot<small>Last: Oct 29, 2026</small></span><span class="row-val val-muted">$106.62</span></div>
+        <div class="row-item" style="background:var(--accent-bg)">
+          <span class="row-label" style="font-weight:700;">BNPL Total</span>
+          <span class="row-val val-green">$707.35</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-debt -->
+
+</div><!-- /tab-content -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="switchTab('schedule',this)">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Schedule
+  </button>
+  <button class="nav-btn" onclick="switchTab('pods',this)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Pods
+  </button>
+  <button class="nav-btn" onclick="switchTab('bnpl',this)">
+    <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+    BNPL
+  </button>
+  <button class="nav-btn" onclick="switchTab('debt',this)">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    Debt
+  </button>
+</nav>
+
+<script>
+  function switchTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + id).classList.add('active');
+    btn.classList.add('active');
+    try { localStorage.setItem('budget_tab', id); } catch(e) {}
+  }
+
+  // Restore last tab
+  try {
+    const saved = localStorage.getItem('budget_tab');
+    if (saved) {
+      const btn = document.querySelector(`.nav-btn[onclick*="${saved}"]`);
+      if (btn) switchTab(saved, btn);
+    }
+  } catch(e) {}
+
+  // Debt tracker live calculations
+  const debts = [
+    { paidId: 'paid-cc',  remId: 'rem-cc',  progId: 'prog-cc',  orig: 32,   color: 'var(--accent)' },
+    { paidId: 'paid-cap', remId: 'rem-cap', progId: 'prog-cap', orig: 1500, color: 'var(--warn)' },
+    { paidId: 'paid-td',  remId: 'rem-td',  progId: 'prog-td',  orig: 2500, color: 'var(--danger)' },
+  ];
+
+  function fmt(n) {
+    return '$' + Math.max(0, n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function updateDebt() {
+    let totalRem = 0;
+    debts.forEach(d => {
+      const paid = Math.min(parseFloat(document.getElementById(d.paidId).value) || 0, d.orig);
+      const rem = d.orig - paid;
+      totalRem += rem;
+      document.getElementById(d.remId).textContent = fmt(rem);
+      document.getElementById(d.progId).style.width = ((paid / d.orig) * 100).toFixed(1) + '%';
+    });
+    document.getElementById('total-hi').textContent = fmt(totalRem);
+    document.getElementById('tile-hi').textContent = '$' + Math.round(totalRem / 100) * 100 >= 1000
+      ? (totalRem / 1000).toFixed(1) + 'k'
+      : Math.round(totalRem).toString();
+
+    // Save to localStorage
+    try {
+      localStorage.setItem('debt_cc', document.getElementById('paid-cc').value);
+      localStorage.setItem('debt_cap', document.getElementById('paid-cap').value);
+      localStorage.setItem('debt_td', document.getElementById('paid-td').value);
+    } catch(e) {}
+  }
+
+  // Restore saved payments
+  try {
+    const cc = localStorage.getItem('debt_cc');
+    const cap = localStorage.getItem('debt_cap');
+    const td = localStorage.getItem('debt_td');
+    if (cc) document.getElementById('paid-cc').value = cc;
+    if (cap) document.getElementById('paid-cap').value = cap;
+    if (td) document.getElementById('paid-td').value = td;
+  } catch(e) {}
+
+  document.querySelectorAll('.debt-input').forEach(inp => {
+    inp.addEventListener('input', updateDebt);
+  });
+
+  updateDebt();
+</script>
